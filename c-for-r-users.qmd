@@ -5,7 +5,7 @@ author:
   - name: Warwick R User Group
 date: 2025-06-26
 date-format: long
-footer: <https://ellakaye.github.io/c-for-r-users>
+footer: <https://ellakaye.github.io/c-for-r-users-2025>
 format: 
   warwickpres-revealjs: 
     include-in-header:
@@ -33,7 +33,6 @@ meta() |>
   writeLines("meta.html")
 ```
 
-
 ## {background-image="images/r_sprint_group_friday.jpeg" background-size="contain"}
 
 ## Background
@@ -54,9 +53,9 @@ Fostering a larger, more diverse community of contributors to base R
 
 ### What I'll do
 
+- Encourage you to contribute to base R
 - Encourage you to learn C
 - Show you some C code in base R
-- Encourage you to contribute to base R
 - Show you how to contribute to base R
 
 :::{.fragment}
@@ -65,6 +64,71 @@ Fostering a larger, more diverse community of contributors to base R
 - Assume you know any C
 - Try to teach you any C
 :::
+
+## The R Devel Container
+
+Live demo - wish me luck!
+
+- Container: <https://github.com/r-devel/r-dev-env>
+- Docs: <https://contributor.r-project.org/r-dev-env/>
+
+## Create codespace
+
+![](images/create-codespace.png)
+
+Can take a few minutes to create codespace. [Here's one I setup earlier](https://orange-giggle-67694rw579hrx5q.github.dev).
+
+
+
+
+
+## Build R from source
+
+<https://contributor.r-project.org/r-dev-env/tutorials/building_r/>
+
+1. svn checkout (usually `https://svn.r-project.org/R/trunk`) (~1 min)
+
+```{.bash}
+svn checkout https://svn.r-project.org/R/tags/R-4-4-3 $TOP_SRCDIR
+```
+
+2. Download recommended packages (<1 min)
+
+```{.bash}
+$TOP_SRCDIR/tools/rsync-recommended
+```
+
+3. Change to build directory (<1 min)
+
+```{.bash}
+mkdir -p $BUILDDIR
+cd $BUILDDIR
+```
+
+## Build R from source (continued)
+
+4. Configure the build (~1 min)
+
+```{.bash}
+$TOP_SRCDIR/configure --with-valgrind-instrumentation=1
+```
+
+5. Build R (5-10 mins)
+
+```{.bash}
+make
+```
+
+6. Check R (~3 mins)
+
+```{.bash}
+make check
+```
+
+7. Make R terminals use the built R (<1 min)
+```{.bash}
+which_r
+```
 
 ## What is C and how does it relate to R?
 
@@ -121,171 +185,19 @@ In these cases it can make sense to code parts in C or C++ and call it from R.
 - Portability (e.g. can also call from Python)
 - Building on other people's C code
 
-# {background-image="images/stem-bug.jpg"}
+# #66CCBB {background-color="#66CCBB" .center-h .larger150 footer=false}
 
-## Irregularity in `stem()` display
-
-<https://bugs.r-project.org/show_bug.cgi?id=8934>
-
-```{r}
-a <- c(8.48, 9.58, 9.96)
-stem(a)
-stem(2)
-stem(c(2, 2))
-```
-
-## Check the code
-
-```{.r}
-stem
-```
-
-```{r}
-#| eval: false
-#| code-line-numbers: "|13" 
-function (x, scale = 1, width = 80, atom = 1e-08) 
-{
-    if (!is.numeric(x)) 
-        stop("'x' must be numeric")
-    x <- x[is.finite(x)]
-    n <- as.integer(length(x))
-    if (is.na(n)) 
-        stop("invalid length(x)")
-    if (n == 0) 
-        stop("no finite and non-missing values")
-    if (scale <= 0) 
-        stop("'scale' must be positive")
-    .Call(C_StemLeaf, as.double(x), scale, width, atom)
-    invisible(NULL)
-}
-```
-
-
-## There's C!
-
-```{r}
-#| error: true
-#| output-location: fragment
-C_StemLeaf
-```
-
-## Where's C?
-
-[github.com/r-devel/r-svn](https://github.com/r-devel/r-svn)
-
-![](images/C_StemLeaf-search.png)
-
-
-## `C_StemLeaf()`
-
-R's C API
-
-```{r}
-#| eval: false
-#| code-line-numbers: "|1,3,15" 
-SEXP C_StemLeaf(SEXP x, SEXP scale, SEXP swidth, SEXP atom)
-{
-    if (TYPEOF(x) != REALSXP || TYPEOF(scale) != REALSXP) 
-        error("invalid input");
-#ifdef LONG_VECTOR_SUPPORT
-    if (IS_LONG_VEC(x))
-	    error(_("long vector '%s' is not supported"), "x");
-#endif
-    int width = asInteger(swidth), n = LENGTH(x);
-    if (n == NA_INTEGER) error(_("invalid '%s' argument"), "x");
-    if (width == NA_INTEGER) error(_("invalid '%s' argument"), "width");
-    double sc = asReal(scale), sa = asReal(atom);
-    if (!R_FINITE(sc)) error(_("invalid '%s' argument"), "scale");
-    if (!R_FINITE(sa)) error(_("invalid '%s' argument"), "atom");
-    stem_leaf(REAL(x), n, sc, width, sa);
-    return R_NilValue;
-}
-```
-
-:::{.notes}
-At the C-level, all R objects are stored in a common datatype, the SEXP, or S-expression. All R objects are S-expressions so every C function that you create must return a SEXP as output and take SEXPs as inputs.
-:::
-
-## `stem_leaf()`
-
-```{r}
-#| eval: false
-#| code-line-numbers: "|8,12" 
-static Rboolean
-stem_leaf(double *x, int n, double scale, int width, double atom)
-{
-    // <initialise variables>
-
-    R_rsort(x,n);
-
-    if (n <= 1) return FALSE;
-
-    //<more code here>
-    
-    /* Find the print width of the stem. */
-
-    lo = floor(x[0]*c/mu)*mu;
-    hi = floor(x[n-1]*c/mu)*mu;
-    ldigits = (lo < 0) ? (int) floor(log10(-(double)lo)) + 1 : 0;
-    hdigits = (hi > 0) ? (int) floor(log10((double)hi)): 0;
-    ndigits = (ldigits < hdigits) ? hdigits : ldigits;
-
-    /* Starting cell */
-
-    if(lo < 0 && floor(x[0]*c) == lo) lo = lo - mu;
-    hi = lo + mu;
-    if(floor(x[0]*c+0.5) > hi) {
-	      lo = hi;
-	      hi = lo + mu;
-    }
-  // <more code here>
-}
-```
-
-:::{.notes}
-In the same file as C_StemLeaf
-:::
-
-## Interfaces / pryr
-
-We've seen `.Call()`. In base R, there's also `.Internal()` and `.Primitive()`
-
-e.g. the source code for `tabulate` includes:
-
-```{.r}
-.Internal(tabulate(bin, nbins))
-```
-
-We can find the underlying code on GitHub with
-
-```{r}
-#| eval: false
-pryr::show_c_source(.Internal(tabulate(bin, nbins)))
-```
-
-We can also use **pryr** to find the SEXTYPE:
-
-```{r}
-pryr::sexp_type(c(8.48, 9.58, 9.96))
-```
-
-:::{.notes}
-First need to look for their C function name in src/main/names.c and then search the R source code. 
-:::
-
-# #66CCBB {background-color="#66CCBB" .center-h .larger150}
-
-# #6CB {background-color="#6CB" .center-h .larger150}
+# #6CB {background-color="#6CB" .center-h .larger150 footer=false}
 
 ## The original idea
 
-![](images/3-digit-hex-idea.png){fig-align="center" }
+![](images/3-digit-hex-idea.png){fig-align="center"}
 
 ## The existing code 
 
 :::{.smaller80}
 ```{c eval=FALSE}
-#| code-line-numbers: "|7,11" 
+#| code-line-numbers: "|7,11,19" 
 /* #RRGGBB[AA] String to Internal Color Code */
 static rcolor rgb2col(const char *rgb)
 {
@@ -326,13 +238,13 @@ case 7:
     b = 16 * hexdigit(rgb[5]) + hexdigit(rgb[6]);
     break;
 case 5: 
-  // Equivalent to 16 * hexdigit(rgb[4]) + hexdigit(rgb[4]);
-  a = (16 + 1) * hexdigit(rgb[4]);
+    // Equivalent to 16 * hexdigit(rgb[4]) + hexdigit(rgb[4]);
+    a = (16 + 1) * hexdigit(rgb[4]);
 case 4:
-  r = (16 + 1) * hexdigit(rgb[1]);
-  g = (16 + 1) * hexdigit(rgb[2]);
-  b = (16 + 1) * hexdigit(rgb[3]);
-  break;
+    r = (16 + 1) * hexdigit(rgb[1]);
+    g = (16 + 1) * hexdigit(rgb[2]);
+    b = (16 + 1) * hexdigit(rgb[3]);
+    break;
 default:
     error(_("invalid RGB specification"));
 }
@@ -364,13 +276,262 @@ default:
 There were actually six files we needed to change, including documentation, tests and news
 :::
 
+# Check progress of dev container! {.inverse}
+
+Hopefully ready to run `make check`
+
+# {background-image="images/stem-bug.jpg" footer=false}
+
+## Irregularities in `stem()` display: stem width
+
+<https://bugs.r-project.org/show_bug.cgi?id=8934> - FIXED in R 4.5.0
+
+Showing what happened <= R 4.4.3
+
+```{r}
+#| eval: false
+a <- c(8.48, 9.58, 9.96)
+stem(a)
+```
+
+```
+  The decimal point is at the |
+
+  8 | 
+  8 | 5
+  9 | 
+  9 | 6
+  10 | 0
+```
+
+## Irregularities in `stem()` display: `n = 1`
+
+```{r}
+#| eval: false
+stem(2)
+stem(c(2, 2))
+```
+
+```
+  The decimal point is at the |
+
+  2 | 00
+```
+
+## Check the code
+
+```{.r}
+stem
+```
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|13" 
+function (x, scale = 1, width = 80, atom = 1e-08) 
+{
+    if (!is.numeric(x)) 
+        stop("'x' must be numeric")
+    x <- x[is.finite(x)]
+    n <- as.integer(length(x))
+    if (is.na(n)) 
+        stop("invalid length(x)")
+    if (n == 0) 
+        stop("no finite and non-missing values")
+    if (scale <= 0) 
+        stop("'scale' must be positive")
+    .Call(C_StemLeaf, as.double(x), scale, width, atom)
+    invisible(NULL)
+}
+```
+
+:::{.notes}
+In base R, there's also `.Internal()` and `.Primitive()` to call C code.
+:::
+
+## There's C!
+
+```{r}
+#| error: true
+#| output-location: fragment
+C_StemLeaf
+```
+
+## Where's C?
+
+[github.com/r-devel/r-svn](https://github.com/r-devel/r-svn)
+
+![](images/C_StemLeaf-search.png)
+
+. . .
+
+:::{.callout-tip}
+Can also search in the R Dev Container codespace, after `svn checkout`
+:::
+
+## `C_StemLeaf()`
+
+R's C API
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|1,3,15" 
+SEXP C_StemLeaf(SEXP x, SEXP scale, SEXP swidth, SEXP atom)
+{
+    if (TYPEOF(x) != REALSXP || TYPEOF(scale) != REALSXP) 
+        error("invalid input");
+#ifdef LONG_VECTOR_SUPPORT
+    if (IS_LONG_VEC(x))
+	    error(_("long vector '%s' is not supported"), "x");
+#endif
+    int width = asInteger(swidth), n = LENGTH(x);
+    if (n == NA_INTEGER) error(_("invalid '%s' argument"), "x");
+    if (width == NA_INTEGER) error(_("invalid '%s' argument"), "width");
+    double sc = asReal(scale), sa = asReal(atom);
+    if (!R_FINITE(sc)) error(_("invalid '%s' argument"), "scale");
+    if (!R_FINITE(sa)) error(_("invalid '%s' argument"), "atom");
+    stem_leaf(REAL(x), n, sc, width, sa);
+    return R_NilValue;
+}
+```
+
+:::{.notes}
+At the C-level, all R objects are stored in a common datatype, the SEXP, or S-expression. All R objects are S-expressions so every C function that you create must return a SEXP as output and take SEXPs as inputs.
+:::
+
+## `stem_leaf()`
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|8,12,20" 
+static Rboolean
+stem_leaf(double *x, int n, double scale, int width, double atom)
+{
+    // <initialise variables>
+
+    R_rsort(x,n);
+
+    if (n <= 1) return FALSE;
+
+    //<more code here>
+    
+    /* Find the print width of the stem. */
+
+    lo = floor(x[0]*c/mu)*mu;
+    hi = floor(x[n-1]*c/mu)*mu;
+    ldigits = (lo < 0) ? (int) floor(log10(-(double)lo)) + 1 : 0;
+    hdigits = (hi > 0) ? (int) floor(log10((double)hi)): 0;
+    ndigits = (ldigits < hdigits) ? hdigits : ldigits;
+
+    /* Starting cell */
+
+    if(lo < 0 && floor(x[0]*c) == lo) lo = lo - mu;
+    hi = lo + mu;
+    if(floor(x[0]*c+0.5) > hi) {
+	      lo = hi;
+	      hi = lo + mu;
+    }
+  // <more code here>
+}
+```
+
+:::{.notes}
+In the same file as C_StemLeaf
+:::
+
+## Live demo: Fixing `n = 1` case
+
+- Delete lines 60-61 in stem.c
+- Run `make` to rebuild R (only re-builds what's changed)
+- (Should then run `make check` but won't for time's sake)
+- Re-attach R
+- See that our change worked
+
+## Live demo: Create a patch
+
+<https://contributor.r-project.org/r-dev-env/tutorials/patch_update/>
+
+1. Create patch file
+
+```{.bash}
+cd $TOP_SRCDIR
+svn diff > $PATCHDIR/8934-n=1.diff
+ls $PATCHDIR
+```
+
+## Live demo: Download patch
+
+![](images/download-patch.png)
+
+## Bugzilla
+
+- Bugzilla: <https://bugs.r-project.org>
+
+- R Development Guide: <https://contributor.r-project.org/rdevguide/>
+
+  - [Reporting bugs](https://contributor.r-project.org/rdevguide/chapters/reporting_bugs.html)
+
+  - [Lifecycle of a patch](https://contributor.r-project.org/rdevguide/chapters/lifecycle_of_a_patch.html)
+
+## The other part of the `stem()` fix
+
+::::{.columns}
+
+:::{.column width="60%"}
+Evaluated under R 4.5.0
+
+```{r}
+a <- c(8.48, 9.58, 9.96)
+stem(a)
+```
+
+The fix in [this commit](https://github.com/r-devel/r-svn/commit/097738f552f315eccc656cddf8861e0dc903855a) or on [bugzilla](https://bugs.r-project.org/show_bug.cgi?id=8934).
+:::
+
+:::{.column width="40%"}
+![](images/dev-day-stem.png)
+:::
+
+::::
+
+:::{.notes}
+Only changed about 10 lines of code, to change when things got rounded, but harder to explain/understand than the 3 digit hex example.
+:::
+
+## Interfaces / pryr {visibility="hidden"}
+
+We've seen `.Call()`. In base R, there's also `.Internal()` and `.Primitive()`
+
+e.g. the source code for `tabulate` includes:
+
+```{.r}
+.Internal(tabulate(bin, nbins))
+```
+
+We can find the underlying code on GitHub with
+
+```{r}
+#| eval: false
+pryr::show_c_source(.Internal(tabulate(bin, nbins)))
+```
+
+We can also use **pryr** to find the SEXTYPE:
+
+```{r}
+pryr::sexp_type(c(8.48, 9.58, 9.96))
+```
+
+:::{.notes}
+First need to look for their C function name in src/main/names.c and then search the R source code. 
+:::
+
+
 # Learning more {.inverse}
 
-## C study group 
+## C Study Group 
 
-<https://contributor.r-project.org/events/c-study-group-2024/>
+<https://contributor.r-project.org/events/c-study-group-2025/>
 
-- Will run again January--June 2025, details TBC
+- May run again January--June 2026, details TBC
 
 - Monthly meetings, weekly suggestions
 
@@ -381,14 +542,6 @@ There were actually six files we needed to change, including documentation, test
 
 - Run by R Contribution Working Group (RCWG)
 
-## RCWG
-
-Fosters a larger, more diverse community of contributors to base R.
-
-- [contributor.r-project.org](https://contributor.r-project.org)
-- [meetup.com/r-contributors](https://www.meetup.com/r-contributors/)
-- [hachyderm.io/@R_Contributors](https://hachyderm.io/@R_Contributors)
-
 ## Resources: R's C API
 
 - Deep R: <https://deepr.gagolewski.com/chapter/310-compiled.html>
@@ -397,6 +550,169 @@ Fosters a larger, more diverse community of contributors to base R.
 - Writing R Extensions (Ch 5 and 6): <https://cran.stat.auckland.ac.nz/doc/manuals/r-devel/R-exts.html>
 - R internals (Hadley Wickham): <https://github.com/hadley/r-internals>
 - R internals (R Core): <https://cran.stat.auckland.ac.nz/doc/manuals/r-devel/R-ints.html>
+
+
+# RCWG {.inverse}
+
+<https://hturner.github.io/useR2024/>
+
+:::{.notes}
+Focus on current/upcoming events
+:::
+
+## RCWG
+
+Fosters a larger, more diverse community of contributors to base R.
+
+
+
+# Supportive infrastructure {.inverse}
+
+## Improved communications
+
+:::: {.columns}
+
+::: {.column width="60%"}
+<a href="https://contributor.r-project.org/">
+  <img src="images/R_Contributor_Site.png">
+</a>
+:::
+
+::: {.column width="40%"}
+<https://contributor.r-project.org>
+
+ * Joining page for Slack
+ * Event calendar
+ * Video tutorials
+ * Novice-friendly documentation
+:::
+::::
+
+Social media: [@R_Contributors@hachyderm.io](https://hachyderm.io/@R_Contributors)
+
+## Weblate interface
+
+<https://translate.rx.studio>
+
+:::: {.columns}
+
+::: {.column width="60%"}
+```{r, out.width = "90%"}
+#| echo: false
+#| eval: true
+#| fig-align: "center"
+#| fig-alt: "Screenshot from Weblate"
+knitr::include_graphics('images/weblate.png')
+```
+:::
+
+::: {.column width="40%"}
+- Web interface to contribute translations
+- Prototype by Gergely Daróczi: [useR! 2022 Poster](https://daroczig.github.io/slides/2022-06-22-useR_2022_poster-Gergely_Daroczi-Internationalization_of_R_packages_with_r18r.pdf)
+- Recommended packages and Mac GUI added in 2024
+:::
+
+::::
+
+## R Dev Container
+
+<https://github.com/r-devel/r-dev-env/>
+
+:::: {.columns}
+
+::: {.column width="60%"}
+```{r, out.width = "90%"}
+#| echo: false
+#| eval: true
+#| fig-align: "center"
+#| fig-alt: "Screenshot of R Dev Container running in GitHub Codespaces."
+knitr::include_graphics('images/r_dev_container.png')
+```
+:::
+
+::: {.column width="40%"}
+- GitHub Codespace with prerequisites for building R
+- VS Code IDE to work on R/C files
+- Docs to step through contributor workflow
+- Product of GSoC 2023 & 2024 projects w/ Atharva Shirdhankar.
+:::
+::::
+
+   
+# Opportunities to learn {.inverse}
+
+## R Development Guide
+
+:::: {.columns}
+
+::: {.column width="55%"}
+![](images/r_dev_guide.png)
+:::
+
+::: {.column width="45%"}
+<https://contributor.r-project.org/rdevguide/>
+
+* Installing R-devel from source
+* Reporting and reviewing bugs
+* Contributing code, documentation, translations
+* Product of R Foundation & Google Season of Docs
+:::
+::::
+
+[useR! 2024 virtual talk](https://youtu.be/vit06hXFw3M?list=PL77T87Q0eoJhsC203plZ1H4p21AGrM9rl) by Saranjeet Kaur Bhogal & Lluís Revilla 
+
+
+## Tutorials
+
+Run at useR! 2021 and again this year
+
+* [Contributing to R](https://contributor.r-project.org/tutorials/contributing-to-r), with Martin Maechler
+   - Perspective of Gabe Becker as a long-term contributor
+   - Exercises analysing past R bugs
+* [Translating R to your Language](https://contributor.r-project.org/tutorials/translating-r-to-your-language/), with Michael Lawrence
+   - `gettext` infrastructure that R uses to internationalize messages
+   - [2024 virtual tutorial](https://youtu.be/ABdyZW8yGS4?list=PL77T87Q0eoJhEvMRMX8o5JVHgy7srQzSJ) focused on Weblate interface
+
+# Opportunities to contribute {.inverse}
+
+## R Contribution Office Hours
+
+:::: {.columns}
+
+::: {.column width="50%"}
+![](images/office-hours.png)
+:::
+
+::: {.column width="50%"}
+
+- Started November 2022
+- Monthly, 2nd Thursday
+- Two time-zones (10am and 5:30pm UK)
+- Informal opportunity to work on any aspect of contributing to R
+- Has led to [patches and bug fixes](https://bugs.r-project.org/buglist.cgi?bug_status=__all__&content=%22office%20hour%22&list_id=31728&order=Importance&query_format=specific)
+:::
+::::
+
+## R Dev Days
+
+- LIST UPCOMING
+    
+- [Shared repo of issues](https://github.com/r-devel/r-dev-day/issues)
+
+# <https://contributor.r-project.org> {.inverse .larger150}
+
+:::{.notes}
+ - Slack group
+ - R Dev Guide, Translation Team Docs, Tutorial Videos
+ - Events (also Meetup, mailing list)
+ - R Contribution Working Group
+:::
+
+## Find out more
+
+- [contributor.r-project.org](https://contributor.r-project.org)
+- [meetup.com/r-contributors](https://www.meetup.com/r-contributors/)
+- [hachyderm.io/@R_Contributors](https://hachyderm.io/@R_Contributors)
 
 ## Thank you! Questions? {.center-h}
 
