@@ -663,28 +663,31 @@ knitr::include_graphics('images/r_dev_container.png')
 
 ## R Development Guide
 
+<https://contributor.r-project.org/rdevguide/>
+
 :::: {.columns}
 
-::: {.column width="55%"}
+::: {.column width="60%"}
 ![](images/r_dev_guide.png)
 :::
 
-::: {.column width="45%"}
-<https://contributor.r-project.org/rdevguide/>
+::: {.column width="40%"}
 
 * Installing R-devel from source
 * Reporting and reviewing bugs
 * Contributing code, documentation, translations
 * Product of R Foundation & Google Season of Docs
+
+[useR! 2024 virtual talk](https://youtu.be/vit06hXFw3M?list=PL77T87Q0eoJhsC203plZ1H4p21AGrM9rl) by Saranjeet Kaur Bhogal & Lluís Revilla 
 :::
 ::::
 
-[useR! 2024 virtual talk](https://youtu.be/vit06hXFw3M?list=PL77T87Q0eoJhsC203plZ1H4p21AGrM9rl) by Saranjeet Kaur Bhogal & Lluís Revilla 
+
 
 
 ## Tutorials
 
-Run at useR! 2021 and again this year
+Run at useR! 2021 and 2024
 
 * [Contributing to R](https://contributor.r-project.org/tutorials/contributing-to-r), with Martin Maechler
   - Perspective of Gabe Becker as a long-term contributor
