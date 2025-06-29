@@ -2,8 +2,8 @@
 title: C for R users
 author: 
   - name: Ella Kaye
-  - name: Warwick R User Group
-date: 2025-06-26
+  - name: R-Ladies Philly
+date: 2025-07-01
 date-format: long
 footer: <https://ellakaye.github.io/c-for-r-users-2025>
 format: 
@@ -90,7 +90,7 @@ Opportunity to work with the R source code
 
 ![](images/create-codespace.png)
 
-Can take a few minutes to create codespace. [Here's one I setup earlier](https://orange-giggle-67694rw579hrx5q.github.dev).
+Can take a few minutes to create codespace. [Here's one I setup earlier](https://fictional-space-doodle-wj6rg9xqp429rgw.github.dev).
 
 ## Build R from source
 
@@ -576,7 +576,7 @@ Focus on current/upcoming events
 
 ## RCWG
 
-- Created in July 2024
+- Created in July 2020
 - ~25 people: R Core, R Foundation, Forwards, R Consortium Diversity & Inclusion Group, R-Ladies, Python Core + wider R community.
 
 [How to foster a larger, more diverse community of contributors to base R?]{.primary .larger150}
